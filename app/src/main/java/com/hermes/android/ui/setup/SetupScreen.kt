@@ -16,7 +16,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hermes.android.data.termux.TermuxLauncher
-import com.hermes.android.data.websocket.HermesConnectionManager
 
 @Composable
 fun SetupScreen(
@@ -114,20 +113,15 @@ fun SetupScreen(
             title = "API Key",
             isComplete = state.apiKey.isNotBlank()
         ) {
-            var provider by remember { mutableStateOf("openai") }
+            var provider by remember { mutableStateOf(state.provider) }
             var key by remember { mutableStateOf("") }
 
-            ExposedDropdownMenuBox(
-                expanded = false,
-                onExpandedChange = { }
-            ) {
-                OutlinedTextField(
-                    value = provider,
-                    onValueChange = { provider = it },
-                    label = { Text("Provider") },
-                    modifier = Modifier.menuAnchor()
-                )
-            }
+            OutlinedTextField(
+                value = provider,
+                onValueChange = { provider = it },
+                label = { Text("Provider (openai/anthropic/openrouter)") },
+                modifier = Modifier.fillMaxWidth()
+            )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = key,
