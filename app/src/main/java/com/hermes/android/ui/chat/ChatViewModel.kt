@@ -9,7 +9,9 @@ import com.hermes.android.data.db.ToolCardEntity
 import com.hermes.android.data.websocket.HermesConnectionManager
 import com.hermes.android.domain.model.ChatMessage
 import com.hermes.android.domain.model.FinishReason
+import com.hermes.android.domain.model.MemoryAction
 import com.hermes.android.domain.model.MemoryEvent
+import com.hermes.android.domain.model.MessageRole
 import com.hermes.android.domain.model.ToolCard
 import com.hermes.android.domain.protocol.HermesInbound
 import com.hermes.android.domain.usecase.ApproveToolUseCase
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -57,7 +60,7 @@ class ChatViewModel @Inject constructor(
     val connectionState = observeConnectionState()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HermesConnectionManager.State.Idle)
 
-    private val deltaBuffer = MutableStateFlow<LiveDelta?>(null)
+    private val deltaBuffer = MutableStateFlow<<LiveDelta?>(null)
     private var deltaFlushJob: Job? = null
     private var currentAssistantMessageId: String? = null
 
@@ -105,10 +108,8 @@ class ChatViewModel @Inject constructor(
     }
 
     fun retryMessage(messageId: String) {
-        // Find original user message and resend
         viewModelScope.launch {
-            val msg = db.messageDao().observeBySession(sessionId)
-                .stateIn(viewModelScope).value.find { it.id == messageId }
+            val msg = db.messageDao().observeBySession(sessionId).first().find { it.id == messageId }
             msg?.let {
                 _isStreaming.value = true
                 sendMessageUseCase(sessionId, it.content)
@@ -131,7 +132,6 @@ class ChatViewModel @Inject constructor(
     private fun handleDelta(event: HermesInbound.Delta) {
         val buffer = deltaBuffer.value ?: LiveDelta(event.turnId).also {
             currentAssistantMessageId = event.turnId
-            // Insert placeholder assistant message
             viewModelScope.launch {
                 db.messageDao().upsert(
                     MessageEntity(
@@ -181,7 +181,7 @@ class ChatViewModel @Inject constructor(
                 _pendingApprovals.value = _pendingApprovals.value + ToolApprovalRequest(
                     turnId = event.turnId,
                     toolCallId = event.toolCallId,
-                    toolName = "", // filled from DB
+                    toolName = "",
                     argsSummary = ""
                 )
                 "pending_approval"
